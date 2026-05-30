@@ -755,11 +755,39 @@ class Particle {
 
 // ── Başlangıç ─────────────────────────────────────────────
 const RADIUS=6,DIAMETER=12;
+
+// Seeded random — aynı seed aynı düzeni üretir
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+// localStorage'dan seed yükle ya da yeni oluştur
+const STORAGE_KEY = 'babel_session';
+let sessionSeed;
+try {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+  sessionSeed = saved?.seed ?? Math.floor(Math.random() * 1e9);
+} catch { sessionSeed = Math.floor(Math.random() * 1e9); }
+
+// Seed'i kaydet
+try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ seed: sessionSeed, ts: Date.now() })); } catch {}
+
+// Seeded random ile parçacıkları oluştur — aynı seed aynı başlangıç
+const rand = seededRand(sessionSeed);
+const _origRandom = Math.random;
+Math.random = rand; // geçici override
+
 const N=Math.max(8,Math.min(400,Math.floor(W*H*0.00016)));
 for(let i=0;i<N;i++){
   particles.push(new Particle());
   statLetters++;
 }
+
+Math.random = _origRandom; // geri yükle — sonraki her şey gerçek random
 
 // ── Giriş ekranı & ghost yükleme ──────────────────────────
 const introEl     = document.getElementById('intro');
