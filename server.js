@@ -11,9 +11,15 @@ const io     = new Server(server, {
   cors: { origin: ['https://lokmanonsoy.com', 'https://www.lokmanonsoy.com', 'https://babel.lokmanonsoy.com'] }
 });
 
-// ── Kalıcı havuz dosyası ──────────────────────────────────
-const POOL_FILE = path.join(__dirname, 'pool.json');
-const LOG_FILE  = path.join(__dirname, 'word-log.jsonl');
+// ── Kalıcı dosyalar ───────────────────────────────────────
+const POOL_FILE   = path.join(__dirname, 'pool.json');
+const GHOST_FILE  = path.join(__dirname, 'ghosts.json');
+const LOG_FILE    = path.join(__dirname, 'word-log.jsonl');
+
+const MAX_GHOSTS_STORED = 200; // sunucuda max saklanan ghost sayısı
+
+// Ghost havuzu — ölmüş kelimeler
+const ghostLog = []; // { text, lang, hue, x_ratio, y_ratio, angle, hueShift }
 
 function savePool() {
   fs.writeFile(POOL_FILE, JSON.stringify({ wordPool, totalSubmitted, totalPopped }), err => {
@@ -29,9 +35,22 @@ function loadPool() {
     if (data.totalSubmitted) totalSubmitted = data.totalSubmitted;
     if (data.totalPopped)    totalPopped    = data.totalPopped;
     console.log(`Havuz yüklendi: ${wordPool.length} kelime`);
-  } catch(e) {
-    console.error('Havuz yükleme hatası:', e);
-  }
+  } catch(e) { console.error('Havuz yükleme hatası:', e); }
+}
+
+function saveGhosts() {
+  fs.writeFile(GHOST_FILE, JSON.stringify(ghostLog.slice(-MAX_GHOSTS_STORED)), err => {
+    if (err) console.error('Ghost kayıt hatası:', err);
+  });
+}
+
+function loadGhosts() {
+  try {
+    if (!fs.existsSync(GHOST_FILE)) return;
+    const data = JSON.parse(fs.readFileSync(GHOST_FILE, 'utf8'));
+    if (Array.isArray(data)) ghostLog.push(...data);
+    console.log(`Ghost yüklendi: ${ghostLog.length} iz`);
+  } catch(e) { console.error('Ghost yükleme hatası:', e); }
 }
 
 // ── Log ───────────────────────────────────────────────────
@@ -63,6 +82,7 @@ const lastSubmit   = new Map();
 
 // Başlangıçta dosyadan yükle
 loadPool();
+loadGhosts();
 
 // ── Keep-alive: kendi kendine ping ────────────────────────
 // Render 15dk işlem olmazsa uyutur — her 10dk'da health kontrolü
@@ -137,6 +157,26 @@ io.on('connection', (socket) => {
     cb(word);
   });
 
+  // ── Ghost gönder (kelime öldüğünde istemci bildirir) ──────
+  socket.on('ghost:submit', (ghost) => {
+    if (!ghost || typeof ghost.text !== 'string') return;
+    const clean = sanitize(ghost.text);
+    if (!clean) return;
+    ghostLog.push({
+      text:      clean,
+      lang:      ghost.lang     || null,
+      hue:       ghost.hue      || 200,
+      hueShift:  ghost.hueShift || 0,
+      angle:     ghost.angle    || 0,
+      x_ratio:   Math.min(1, Math.max(0, ghost.x_ratio || 0.5)),
+      y_ratio:   Math.min(1, Math.max(0, ghost.y_ratio || 0.5)),
+      ts:        Date.now(),
+    });
+    if (ghostLog.length > MAX_GHOSTS_STORED)
+      ghostLog.splice(0, ghostLog.length - MAX_GHOSTS_STORED);
+    saveGhosts();
+  });
+
   socket.on('disconnect', () => {
     userCount--;
     lastSubmit.delete(socket.id);
@@ -166,6 +206,23 @@ app.get('/logs', (req, res) => {
     } catch {}
   });
   rl.on('close', () => res.json({ total: entries.length, logs: entries.slice(-limit) }));
+});
+
+// ── Genel istatistik endpoint'i ───────────────────────────
+app.get('/stats', (_, res) => {
+  res.json({
+    totalSubmitted,
+    totalPopped,
+    poolSize:   wordPool.length,
+    ghostCount: ghostLog.length,
+    users:      userCount,
+  });
+});
+
+// ── Ghost endpoint'i ──────────────────────────────────────
+app.get('/ghosts', (_, res) => {
+  // Son 80 ghost'u döndür
+  res.json(ghostLog.slice(-80));
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
