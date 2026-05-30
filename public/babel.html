@@ -118,9 +118,66 @@
     cursor: pointer; text-transform: uppercase; z-index: 100; transition: all 0.2s;
   }
   #fullscreen-btn:hover { background: rgba(0,0,0,0.1); color: rgba(0,0,0,0.6); }
+
+  /* ── Giriş ekranı ── */
+  #intro {
+    position: fixed;
+    inset: 0;
+    background: #f2efe9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    transition: opacity 1.2s ease;
+    gap: 20px;
+  }
+  #intro.hidden { opacity: 0; pointer-events: none; }
+  #intro-title {
+    font-family: 'Georgia', serif;
+    font-size: 42px;
+    letter-spacing: 0.15em;
+    color: rgba(0,0,0,0.7);
+  }
+  #intro-stats {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    color: rgba(0,0,0,0.3);
+    text-align: center;
+    line-height: 2.2;
+    text-transform: uppercase;
+  }
+  #intro-desc {
+    font-family: 'Georgia', serif;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: rgba(0,0,0,0.25);
+    text-align: center;
+    line-height: 1.8;
+    max-width: 360px;
+  }
+  #intro-enter {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: rgba(0,0,0,0.2);
+    text-transform: uppercase;
+    margin-top: 16px;
+    animation: blink 2s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:0.2} 50%{opacity:0.6} }
 </style>
 </head>
 <body>
+
+<!-- Giriş ekranı -->
+<div id="intro">
+  <div id="intro-title">Babel</div>
+  <div id="intro-stats">—</div>
+  <div id="intro-desc">Harfler çarpışarak kelime olur.<br>Kelimeler çarpışarak başka dile dönüşür.</div>
+  <div id="intro-enter">yükleniyor...</div>
+</div>
 <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Tam Ekran</button>
 <div id="canvas-wrap">
   <canvas id="c"></canvas>
@@ -257,7 +314,6 @@ function initSocket() {
     console.warn('Socket.io yüklenemedi, yerel mod aktif');
   }
 }
-initSocket();
 
 function submitWord() {
   const raw = inputEl.value.trim();
@@ -522,11 +578,24 @@ class Particle {
       if(this.opacity<=0){
         // Kelime ölünce iz bırak
         if(this.type==='word'){
-          ghosts.push({
+          const ghostData = {
             x:this.x, y:this.y, angle:this.angle,
             content:this.content, lang:this.lang,
             fs:this.fs, hueShift:this.hueShift, opacity:0.20
-          });
+          };
+          ghosts.push(ghostData);
+          // Sunucuya bildir — konum ekran oranı olarak
+          if(socketConnected && socket){
+            socket.emit('ghost:submit', {
+              text:     this.content,
+              lang:     this.lang,
+              hue:      this.hue ?? 200,
+              hueShift: this.hueShift,
+              angle:    this.angle,
+              x_ratio:  this.x / W,
+              y_ratio:  this.y / H,
+            });
+          }
         }
         this.dead=true;
       }
@@ -690,6 +759,65 @@ for(let i=0;i<N;i++){
   particles.push(new Particle());
   statLetters++;
 }
+
+// ── Giriş ekranı & ghost yükleme ──────────────────────────
+const introEl     = document.getElementById('intro');
+const introStats  = document.getElementById('intro-stats');
+const introEnter  = document.getElementById('intro-enter');
+
+const introI18n = [
+  w => `${w} kelime bu sistemden geçti`,
+  w => `${w} words have passed through this system`,
+  w => `${w} mots sont passés par ce système`,
+  w => `${w} Wörter haben dieses System durchlaufen`,
+  w => `${w} palabras han pasado por este sistema`,
+  w => `${w}個の言葉がこのシステムを通り過ぎた`,
+  w => `${w} слов прошло через эту систему`,
+  w => `${w} كلمة مرّت عبر هذا النظام`,
+  w => `${w} parole sono passate attraverso questo sistema`,
+  w => `${w}개의 단어가 이 시스템을 통과했다`,
+];
+
+async function loadIntro() {
+  try {
+    // İstatistik çek
+    const statsRes = await fetch(`${SOCKET_URL}/stats`);
+    const stats    = await statsRes.json();
+    const fn = introI18n[tIdx] ?? introI18n[0];
+    introStats.textContent = fn(stats.totalPopped || 0);
+
+    // Ghost izleri çek
+    const ghostRes  = await fetch(`${SOCKET_URL}/ghosts`);
+    const serverGhosts = await ghostRes.json();
+    // Ekrana yerleştir — konum oranlarını gerçek px'e çevir
+    for (const g of serverGhosts) {
+      ghosts.push({
+        x:       g.x_ratio * W,
+        y:       g.y_ratio * H,
+        angle:   g.angle   || 0,
+        content: g.text,
+        lang:    g.lang    || null,
+        fs:      10 + Math.random() * 4,
+        hueShift: g.hueShift || 0,
+        opacity: 0.12, // sunucudan gelenler daha soluk
+      });
+    }
+    introEnter.textContent = '— — —';
+  } catch(e) {
+    introStats.textContent = '';
+    introEnter.textContent = '— — —';
+  }
+
+  // 3.5 saniye sonra giriş ekranını kapat
+  setTimeout(() => {
+    introEl.classList.add('hidden');
+    setTimeout(() => { introEl.style.display='none'; }, 1300);
+  }, 3500);
+}
+
+// Socket başlat ve intro yükle
+initSocket();
+loadIntro();
 
 const hash=new SpatialHash(40);
 let frame=0;
