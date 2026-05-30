@@ -7,7 +7,7 @@ const fs      = require('fs');
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, {
-  cors: { origin: ['https://lokmanonsoy.com', 'https://www.lokmanonsoy.com'] }
+  cors: { origin: ['https://lokmanonsoy.com', 'https://www.lokmanonsoy.com', 'https://babel.lokmanonsoy.com'] }
 });
 
 // ── Log dosyası ───────────────────────────────────────────
@@ -138,6 +138,10 @@ app.get('/logs', (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Kök URL'yi babel.html'ye yönlendir
+app.get('/', (_, res) => res.sendFile(path.join(__dirname, 'public', 'babel.html')));
+
 app.get('/health', (_, res) => res.json({ status: 'ok', pool: wordPool.length, users: userCount, totalSubmitted }));
 
 const PORT = process.env.PORT || 3000;
