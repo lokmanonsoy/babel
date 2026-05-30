@@ -43,11 +43,11 @@
   #stats {
     flex: 0 0 220px;
     border-left: 1px solid rgba(0,0,0,0.07);
-    padding: 12px 18px;
+    padding: 10px 18px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
   }
   #word-input {
     width: 100%;
@@ -142,6 +142,7 @@
       <button id="send-btn" onclick="submitWord()">↵ gönder</button>
       <div id="pool-stat" style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.1em;color:rgba(0,0,0,0.2);text-transform:uppercase;">havuz: 0</div>
     </div>
+    <div id="send-feedback" style="font-family:'Georgia',serif;font-size:11px;letter-spacing:0.1em;color:rgba(0,0,0,0.45);opacity:0;transition:opacity 0.3s;min-height:16px;"></div>
   </div>
 </div>
 
@@ -161,16 +162,16 @@ document.addEventListener('fullscreenchange', () => {
 
 // ── Başlık & açıklama döngüsü ─────────────────────────────
 const titleData = [
-  { t:'Babel',   d:'Harfler çarpışarak kelime olur. Kelimeler çarpışarak başka dile dönüşür.', l1:'Harf', l2:'Kelime', l3:'Dönüşüm', fs:'⛶ Tam Ekran' },
-  { t:'Babel',   d:'Letters collide into words. Words collide into other tongues.',             l1:'Letter', l2:'Word', l3:'Transform', fs:'⛶ Fullscreen' },
-  { t:'Babel',   d:'Les lettres s\'assemblent. Les mots se transforment. Le sens s\'envole.',   l1:'Lettre', l2:'Mot', l3:'Transform.', fs:'⛶ Plein écran' },
-  { t:'Babel',   d:'Buchstaben werden Wörter. Wörter werden fremde Sprachen.',                  l1:'Buchstabe', l2:'Wort', l3:'Wandlung', fs:'⛶ Vollbild' },
-  { t:'Babel',   d:'Las letras chocan y forman palabras. Las palabras cambian de lengua.',      l1:'Letra', l2:'Palabra', l3:'Transform.', fs:'⛶ Pantalla' },
-  { t:'バベル',   d:'文字が衝突して言葉になる。言葉が衝突して別の言語になる。',                   l1:'文字', l2:'言葉', l3:'変換', fs:'⛶ 全画面' },
-  { t:'Вавилон', d:'Буквы сталкиваются и становятся словами. Слова меняют язык.',              l1:'Буква', l2:'Слово', l3:'Превращ.', fs:'⛶ На весь экран' },
-  { t:'بابل',    d:'تتصادم الحروف لتصبح كلمات. تتحول الكلمات إلى لغات أخرى.',                l1:'حرف', l2:'كلمة', l3:'تحويل', fs:'⛶ ملء الشاشة' },
-  { t:'Babel',   d:'Le lettere si scontrano e diventano parole. Le parole cambiano lingua.',    l1:'Lettera', l2:'Parola', l3:'Trasform.', fs:'⛶ Schermo intero' },
-  { t:'바벨',    d:'글자가 충돌하여 단어가 된다. 단어가 충돌하여 다른 언어가 된다.',              l1:'글자', l2:'단어', l3:'변환', fs:'⛶ 전체 화면' },
+  { t:'Babel',   d:'Harfler çarpışarak kelime olur. Kelimeler çarpışarak başka dile dönüşür.', fs:'⛶ Tam Ekran',        pool:'havuz', sent:'gönderildi', warn_rate:'çok hızlı', warn_full:'havuz dolu' },
+  { t:'Babel',   d:'Letters collide into words. Words collide into other tongues.',             fs:'⛶ Fullscreen',      pool:'pool',  sent:'sent',        warn_rate:'too fast',   warn_full:'pool full' },
+  { t:'Babel',   d:'Les lettres s\'assemblent. Les mots se transforment. Le sens s\'envole.',   fs:'⛶ Plein écran',     pool:'réservoir', sent:'envoyé',  warn_rate:'trop vite',  warn_full:'réservoir plein' },
+  { t:'Babel',   d:'Buchstaben werden Wörter. Wörter werden fremde Sprachen.',                  fs:'⛶ Vollbild',        pool:'Vorrat', sent:'gesendet',   warn_rate:'zu schnell', warn_full:'Vorrat voll' },
+  { t:'Babel',   d:'Las letras chocan y forman palabras. Las palabras cambian de lengua.',      fs:'⛶ Pantalla',        pool:'reserva', sent:'enviado',   warn_rate:'muy rápido', warn_full:'reserva llena' },
+  { t:'バベル',   d:'文字が衝突して言葉になる。言葉が衝突して別の言語になる。',                   fs:'⛶ 全画面',           pool:'プール', sent:'送信済み',    warn_rate:'早すぎる',    warn_full:'満杯' },
+  { t:'Вавилон', d:'Буквы сталкиваются и становятся словами. Слова меняют язык.',              fs:'⛶ На весь экран',   pool:'резерв', sent:'отправлено', warn_rate:'слишком быстро', warn_full:'резерв полон' },
+  { t:'بابل',    d:'تتصادم الحروف لتصبح كلمات. تتحول الكلمات إلى لغات أخرى.',                fs:'⛶ ملء الشاشة',      pool:'مخزن',  sent:'أُرسل',       warn_rate:'سريع جداً',  warn_full:'المخزن ممتلئ' },
+  { t:'Babel',   d:'Le lettere si scontrano e diventano parole. Le parole cambiano lingua.',    fs:'⛶ Schermo intero',  pool:'riserva', sent:'inviato',   warn_rate:'troppo veloce', warn_full:'riserva piena' },
+  { t:'바벨',    d:'글자가 충돌하여 단어가 된다. 단어가 충돌하여 다른 언어가 된다.',              fs:'⛶ 전체 화면',        pool:'풀',    sent:'전송됨',       warn_rate:'너무 빠름',   warn_full:'풀 가득참' },
 ];
 let tIdx=0;
 const titleEl=document.getElementById('title'), descEl=document.getElementById('description');
@@ -198,7 +199,7 @@ const poolStatEl = document.getElementById('pool-stat');
 // ── Socket.io bağlantısı ──────────────────────────────────
 // ⚠️  PRODUCTION'A GEÇMEDEN ÖNCE BU SATIRI GÜNCELLE:
 // const SOCKET_URL = 'https://lokmanonsoy.com:3000';
-const SOCKET_URL = 'https://babel-4mp7.onrender.com';
+const SOCKET_URL = 'http://localhost:3000';
 let socket = null;
 let socketConnected = false;
 
@@ -208,10 +209,11 @@ let totalSubmitted = 0;
 let userCount = 0;
 
 function updatePoolStat() {
+  const d = titleData[tIdx] ?? titleData[0];
   const poolSize = socketConnected
     ? parseInt(poolStatEl.dataset.poolSize || 0)
     : localPool.length;
-  poolStatEl.textContent = `havuz: ${totalSubmitted}  ·  aktif: ${poolSize}  ·  kullanıcı: ${userCount}`;
+  poolStatEl.textContent = `${d.pool}: ${totalSubmitted}  ·  ${poolSize}  ·  👤 ${userCount}`;
 }
 
 function initSocket() {
@@ -264,14 +266,34 @@ function submitWord() {
   totalSubmitted++;
 
   if (socketConnected && socket) {
-    socket.emit('word:submit', raw);
+    // Sunucuya gönder, onay bekle
+    socket.emit('word:submit', raw, (res) => {
+      if (res && res.ok) {
+        showFeedback(getFeedbackText('ok', res.word));
+      } else if (res && res.reason === 'rate_limited') {
+        showFeedback(getFeedbackText('rate', ''), 'warn');
+      } else if (res && res.reason === 'pool_full') {
+        showFeedback(getFeedbackText('full', ''), 'warn');
+      } else {
+        showFeedback('⚠', 'warn');
+      }
+    });
   } else {
-    // Sunucu yoksa yerel havuza ekle
     localPool.push({ text: raw });
+    showFeedback(getFeedbackText('ok', raw));
     updatePoolStat();
   }
   appendBottom('+ ' + raw);
   inputEl.focus();
+}
+
+function showFeedback(text, type) {
+  const el = document.getElementById('send-feedback');
+  el.textContent = text;
+  el.style.color = (!type || type === 'ok') ? 'rgba(0,0,0,0.45)' : 'rgba(180,80,40,0.7)';
+  el.style.opacity = '1';
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.style.opacity = '0'; }, 2000);
 }
 
 // Enter tuşu
@@ -304,8 +326,6 @@ function spawnFromPool(x, y) {
   }
 }
 
-const poolI18n = ['havuz','pool','réservoir','Vorrat','reserva','プール','резерв','مخزن','riserva','풀'];
-
 function rotateTitle() {
   titleEl.style.opacity=descEl.style.opacity='0';
   setTimeout(()=>{
@@ -317,11 +337,19 @@ function rotateTitle() {
     inputEl.placeholder=i.ph;
     sendBtn.textContent=i.btn;
     if(!document.fullscreenElement) btnEl.textContent=d.fs;
-    titleEl.style.opacity=descEl.style.opacity='1';
     updatePoolStat();
+    titleEl.style.opacity=descEl.style.opacity='1';
   }, 800);
 }
 setInterval(rotateTitle, 3500);
+
+function getFeedbackText(type, word) {
+  const d = titleData[tIdx];
+  if (type === 'ok')   return '✓ ' + word;
+  if (type === 'rate') return '⚠ ' + (d.warn_rate || '—');
+  if (type === 'full') return '⚠ ' + (d.warn_full || '—');
+  return '⚠';
+}
 
 // ── Alt şerit ─────────────────────────────────────────────
 const wlEls=[document.getElementById('wl-0'),document.getElementById('wl-1'),document.getElementById('wl-2')];
