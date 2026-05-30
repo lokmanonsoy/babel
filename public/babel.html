@@ -580,6 +580,7 @@ class Particle {
         if(this.type==='word'){
           const ghostData = {
             x:this.x, y:this.y, angle:this.angle,
+            x_ratio: this.x / W, y_ratio: this.y / H,
             content:this.content, lang:this.lang,
             fs:this.fs, hueShift:this.hueShift, opacity:0.20
           };
@@ -851,8 +852,11 @@ function loop(){
 
   // Ölüm izleri — %20 opaklıkta kalıcı
   for(const g of ghosts){
+    // Sunucudan gelen ghost'lar oransal koordinat kullanır (resize-safe)
+    const gx = g.x_ratio !== undefined ? g.x_ratio * W : g.x;
+    const gy = g.y_ratio !== undefined ? g.y_ratio * H : g.y;
     ctx.save();
-    ctx.translate(g.x,g.y); ctx.rotate(g.angle);
+    ctx.translate(gx, gy); ctx.rotate(g.angle);
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.font=`${g.fs}px 'Georgia',serif`;
     ctx.fillStyle=g.lang?langColor(g.lang,g.opacity,g.hueShift):`rgba(30,25,20,${g.opacity})`;
