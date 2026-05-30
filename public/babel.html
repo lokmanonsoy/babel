@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Babel</title>
-<!-- Socket.io — sunucu adresi değişirse burası güncellenir -->
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7NHQPF4N4T"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-7NHQPF4N4T');
+</script>
+<!-- Socket.io -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -210,8 +218,15 @@ const ctx = canvas.getContext('2d');
 // ── Tam ekran ─────────────────────────────────────────────
 function toggleFullscreen() {
   const btn = document.getElementById('fullscreen-btn');
-  if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); btn.textContent='✕'; }
-  else { document.exitFullscreen(); btn.textContent=titleData[tIdx].fs; }
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+    btn.textContent='✕';
+    gtag('event', 'fullscreen_enter');
+  } else {
+    document.exitFullscreen();
+    btn.textContent=titleData[tIdx].fs;
+    gtag('event', 'fullscreen_exit');
+  }
 }
 document.addEventListener('fullscreenchange', () => {
   if (!document.fullscreenElement) document.getElementById('fullscreen-btn').textContent=titleData[tIdx].fs;
@@ -318,6 +333,9 @@ function submitWord() {
   if (!raw) return;
   inputEl.value = '';
   totalSubmitted++;
+
+  // GA event
+  gtag('event', 'word_submitted', { word_length: raw.length });
 
   if (socketConnected && socket) {
     // Sunucuya gönder, onay bekle
@@ -838,6 +856,7 @@ async function loadIntro() {
   // 3.5 saniye sonra giriş ekranını kapat
   setTimeout(() => {
     introEl.classList.add('hidden');
+    gtag('event', 'intro_dismissed', { total_popped: stats?.totalPopped || 0 });
     setTimeout(() => { introEl.style.display='none'; }, 1300);
   }, 3500);
 }
