@@ -837,14 +837,15 @@ async function loadIntro() {
     // Ekrana yerleştir — konum oranlarını gerçek px'e çevir
     for (const g of serverGhosts) {
       ghosts.push({
-        x:       g.x_ratio * W,
-        y:       g.y_ratio * H,
-        angle:   g.angle   || 0,
-        content: g.text,
-        lang:    g.lang    || null,
-        fs:      10 + Math.random() * 4,
+        x_ratio:  g.x_ratio,
+        y_ratio:  g.y_ratio,
+        angle:    g.angle    || 0,
+        content:  g.text,           // sunucu 'text' gönderiyor, client 'content' bekliyor
+        lang:     g.lang    || null,
+        fs:       10 + Math.random() * 4,
         hueShift: g.hueShift || 0,
-        opacity: 0.12, // sunucudan gelenler daha soluk
+        hue:      g.hue      || 200,
+        opacity:  0.12,
       });
     }
     introEnter.textContent = '— — —';
